@@ -90,7 +90,7 @@ any {
 		"output\${COMP}\Release\AutoBuild.exe",
 	};
 
-    requires {
+    requires: {
         "newtonsoft.json.net[net40]-4.5.3-any-1e373a58e25250cb";
     }
 
