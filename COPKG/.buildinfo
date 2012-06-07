@@ -1,0 +1,101 @@
+/* target information */
+@import "version.inc";
+
+#define {
+    NewVersion : "${package-version++}";
+}
+
+#product-info  {
+	product-name: "AutoBuild";
+	version: "Release";
+	original-source-location: "https://github.com/CoApp-Test/AutoBuild";
+	license: "Apache License";
+	packager: "Tim Rogers";
+}
+
+test {
+};
+
+package {
+    set: COMP="${COMP??vc10}";
+    default : false;
+    uses : {
+        update-version,
+        sign,
+    };
+    
+    targets: { 
+        COMP => "" = @"copkg\autobuild[${each}]-${NewVersion}-any.msi",
+    };
+    
+    build-command : @"
+        pushd COPKG
+        
+        for %%a in (${COMP}) do (
+            autopackage --comp=%%a AutoBuild.autopkg || goto failed
+        )
+        popd
+    ";
+
+	clean-command: @"del COPKG\*.msi COPKG\*.wixpdb";
+	
+};
+
+
+update-version {
+    default : false;
+    
+    build-command : @"
+        REM auto-increment version.inc file...
+        if ""${noversion}"" == ""true"" goto :eof
+        
+        pushd COPKG
+        setlocal EnableDelayedExpansion
+        set VERSTRING=#define { package-version: ${NewVersion}; }
+        echo !VERSTRING! > version.inc
+        popd
+    ";
+}
+
+sign {
+    set: {
+        COMP="${COMP??vc10}";
+		PLAT="${PLAT??x86, x64}";
+    };
+    uses : release;
+    default : false;
+    build-command: @"
+        for %%A in (${COMP}) do (
+            simplesigner.exe --nologo --sign output\%%A\Release\**.exe
+        )
+    ";
+};
+
+release {
+    set: BuildCfg="Release";
+	uses: any;
+};
+
+debug {
+    set: BuildCfg="Debug";
+	uses: any;
+};
+
+any {
+    set: COMP="${COMP??vc10}";
+    compiler: "${COMP}";
+    platform: any;
+
+    targets: { 
+		"output\${COMP}\Release\AutoBuild.exe",
+	};
+	
+    build-command:@"
+        msbuild /p:Configuration=${BuildCfg??Debug} AutoBuild.sln || goto failed
+    ";
+
+    clean-command:@"
+       if exist output rmdir /s /q output > nul 2> nul
+       del /S /Q /A - *.sdf *.suo *.user *.exe *.pdb > nul 2>NUL
+    ";
+};

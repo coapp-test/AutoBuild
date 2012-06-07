@@ -1,0 +1,86 @@
+@import "version.inc";
+@import "compat.inc";
+@import "outercurve.inc";
+
+#define { 
+    flavor: "${comp??vc10}"; 
+    arch : any;
+}
+
+package {
+    name: "AutoBuild[${flavor}]";
+    version: "${package-version}";
+    arch : "${arch}";
+    
+    display-name: "AutoBuild";
+
+    publisher: "CoApp Project";
+}
+
+files[files-to-sign] {
+    include: { 
+        exes
+    };    
+}
+
+files[exes] {
+    root: @"..\output\${flavor}\Release\";
+  
+    include: {
+        "AutoBuild.exe",
+    };
+    
+    trim-path: all;
+};
+
+requires {
+    package: "newtonsoft.json.net[net40]-4.5.3-any-1e373a58e25250cb";
+}
+
+metadata {
+    summary: "AutoBuild";
+    description:  @"AutoBuild build automation tool."; 
+
+    bug-tracker: "https://github.com/coapp-test/AutoBuild/issues";
+    stability : "0";
+}
+
+manifest[things-that-need-them] {
+    // all of our libraries need to get the manifest entries for the assemblies we're using in this package
+    
+    assembly : {
+        "newtonsoft.json.net[net40]",
+    };
+    
+    include : { 
+        exes
+    };
+}
+
+application[AutoBuild[${flavor}]] {
+    include : {
+        exes
+    };
+}
+
+signing {
+    attributes : {
+        company="Outercurve Foundation",
+        description="apr",
+        product-name="apr",
+        product-version="${package-version}",
+        file-version="${package-version}",
+    };
+    
+    replace-signature: true; 
+    include: { 
+        files-to-sign
+    };    
+}
+
+package-composition {
+    symlinks : {
+        exes => @"${bin}\${each.Name}" = @"${packagedir}\${each.Name}";
+    };
+}
+
