@@ -282,6 +282,29 @@ namespace AutoBuilder
         }
 
         /// <summary>
+        /// Run the associated process synchronously and redirect input/output
+        /// </summary>
+        /// <param name="arguments">Command line parameters as formatted string</param>
+        /// <param name="args">Zero or more strings to format</param>
+        /// <returns>The exit code of the associated process</returns>
+        public int ExecNoStdInRedirect(string arguments, params string[] args)
+        {
+            try
+            {
+                ExecAsyncNoStdInRedirect(arguments, args);
+                WaitForExit();
+            }
+            catch (Exception e)
+            {
+                currentProcess = null;
+                sErr.AppendFormat("Failed to execute program [{0}]\r\n   {1}", Executable, e.Message);
+                return 100;
+            }
+
+            return currentProcess.ExitCode;
+        }
+
+        /// <summary>
         /// Run the associated process synchronously
         /// </summary>
         /// <param name="arguments">Command line parameters as formatted string</param>

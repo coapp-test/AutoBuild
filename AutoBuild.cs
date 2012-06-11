@@ -51,6 +51,7 @@ namespace AutoBuilder
         private static int CurrentJobs;
         public static List<Daemon> Daemons;
         public static Action<string> VerboseOut;
+        public static bool WriteConsole;
 
         public static void WriteVerbose(string data)
         {
@@ -90,6 +91,7 @@ namespace AutoBuilder
         {
             VerboseOut = s => Console.WriteLine(s);
             AutoBuild Manager = Instance;
+            AutoBuild.WriteConsole = true;
             Manager.OnStart(new string[0]);
             ConsoleKeyInfo c = new ConsoleKeyInfo(' ', ConsoleKey.Spacebar, false, false, false);
             while (!(c.Key.Equals(ConsoleKey.Escape)))
@@ -587,7 +589,8 @@ namespace AutoBuilder
                 Directory.CreateDirectory(ArchiveLoc);
             ProjectData proj = Projects[projectName];
             ProcessUtility _cmdexe = new ProcessUtility("cmd.exe");
-            // Redirect stdout and stderr to the same output
+            _cmdexe.ConsoleOut = WriteConsole;
+            
 
             Func<string> getToolSwitches = () =>
             {

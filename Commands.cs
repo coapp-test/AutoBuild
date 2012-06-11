@@ -58,7 +58,7 @@ namespace AutoBuilder
             }
 
             FS.Close();
-            return exe.Exec(@"/c """ + tmpFile + @"""");
+            return exe.ExecNoStdInRedirect(@"/c """ + tmpFile + @"""");
         }
 
         public string Flatten(XDictionary<string, string> macros = null)

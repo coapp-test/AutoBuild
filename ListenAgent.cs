@@ -392,6 +392,8 @@ namespace AutoBuilder
                 try
                 {
                     dynamic json = JObject.Parse(payload);
+                    var jobj = JObject.Parse(payload);
+
                     WriteLog("MSG Process begin " + json.commits.Count);
 
                     string repository = (json.repository.name) ?? String.Empty;
