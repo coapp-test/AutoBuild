@@ -1,11 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using CoApp.Toolkit.Collections;
 using CoApp.Toolkit.Extensions;
 using CoApp.Toolkit.Pipes;
 using CoApp.Toolkit.Tasks;
@@ -559,6 +561,172 @@ namespace AutoBuilder
 
             return result;
         }
+
+
+        public override Task Get(HttpListenerResponse response, string relativePath, UrlEncodedMessage message)
+        {
+            if ((message["status"] + message["build"] + message["publish"] + message["log"] + message["reload"] + message["reconfig"] + message["cancel"])
+                .Equals(String.Empty))
+            {
+                response.StatusCode = 500;
+                response.Close();
+                return "".AsResultTask();
+            }
+            
+            var result = Task.Factory.StartNew(() =>
+            {
+                try
+                {
+                    if (message["reconfig"] != String.Empty)
+                    {
+                        //re-load global config request
+                        if (!AutoBuild.Instance.LoadConfig())
+                        {
+                            response.WriteString("Failed to load new global config.  ");
+                        }
+                    }
+                    if (message["reload"] != String.Empty)
+                    {
+                        //re-load project config request
+                        string projName = message["reload"];
+                        if (!AutoBuild.Instance.LoadProject(projName, true))
+                        {
+                            response.WriteString("Failed to reload project config: '{0}'.  ", projName);
+                        }
+                    }
+                    if (message["status"] != String.Empty)
+                    {
+                        //status request
+                        string projName = message["status"];
+                        var proj = AutoBuild.Projects[projName];
+                        if (proj != null)
+                        {
+                            string currentStatus = AutoBuild.IsRunning(projName)
+                                                       ? "Running"
+                                                       : AutoBuild.IsWaiting(projName)
+                                                             ? "Waiting in queue"
+                                                             : proj.GetHistory().Builds.Count > 0
+                                                                   ? "{0}  at {1}".format(
+                                                                       proj.GetHistory().Builds[
+                                                                           proj.GetHistory().Builds.Count-1].Result,
+                                                                       proj.GetHistory().Builds[
+                                                                           proj.GetHistory().Builds.Count-1].TimeStamp
+                                                                           .ToString("yyyy-MM-dd HH:mm:ss"))
+                                                                   : "Project status unavailable.  Please build the project.";
+                            response.WriteString("Status of project '{0}':  {1}", projName, currentStatus);
+                        }
+                        else
+                        {
+                            response.WriteString("Unable to return status for project '{0}':  No such project.  ", projName);
+                        }
+                    }
+                    if (message["build"] != String.Empty)
+                    {
+                        //build request
+                        string projName = message["build"];
+                        if (AutoBuild.Projects[projName] != null)
+                        {
+                            if (AutoBuild.IsWaiting(projName))
+                                response.WriteString("Project already scheduled to run: '{0}'.  ", projName);
+                            else
+                            {
+                                AutoBuild.StandBy(projName);
+                                response.WriteString("Project added to build queue: '{0}'.  ", projName);
+                            }
+                        }
+                        else
+                        {
+                            response.WriteString("Unable to return status for project '{0}':  No such project.  ", projName);
+                        }
+                    }
+                    if (message["cancel"] != String.Empty)
+                    {
+                        //logfile request
+                        string projName = message["cancel"];
+                        if (AutoBuild.Projects.ContainsKey(projName))
+                        {
+                            string msg = AutoBuild.CancelQueue(projName)
+                                             ? "Pending builds canceled for project: '{0}'.  ".format(projName)
+                                             : "Error cancelling pending builds: '{0}'.  ".format(projName);
+                            response.WriteString(msg);
+                        }
+                        else
+                        {
+                            response.WriteString("Unable to cancel, project does not exist: '{0}'.  ", projName);
+                        }
+                    }
+                    if (message["publish"] != String.Empty)
+                    {
+                        //publish finished packages
+                        ProcessUtility _cmdexe = new ProcessUtility("cmd.exe");
+
+                        int ret = AutoBuild.MasterConfig.Commands["MasterPublish"].Run(_cmdexe,
+                                                                                       Environment.CurrentDirectory,
+                                                                                       new XDictionary<string, string>());
+                        if (ret == 0)
+                            response.WriteString("Publish uploads completed successsfully.  ");
+                        else
+                            response.WriteString("Error occurred during publish upload.  ");
+                    }
+                    if (message["log"] != String.Empty)
+                    {
+                        //logfile request
+                        string projName = message["status"];
+                        var proj = AutoBuild.Projects[projName];
+                        if (proj != null)
+                        {
+                            string msg;
+                            if (proj.GetHistory().Builds.Count <= 0)
+                                msg = "Project status unavailable.  Please build the project.";
+                            else
+                            {
+                                try
+                                {
+                                    string logfile = Path.Combine(AutoBuild.MasterConfig.ProjectRoot, projName, "Archive",
+                                                                  proj.GetHistory().Builds[
+                                                                      proj.GetHistory().Builds.Count - 1].TimeStamp.ToString
+                                                                      (AutoBuild.DateTimeDirFormat));
+                                    msg = File.ReadAllText(logfile);
+                                }
+                                catch (Exception ee)
+                                {
+                                    msg = "Error: Unable to open log file for project '{0}'.  ".format(projName);
+                                }
+                            }
+                            response.WriteString(msg);
+                        }
+                        else
+                        {
+                            response.WriteString("Unable to return log for project '{0}':  No such project.  ", projName);
+                        }
+                    }
+
+                }
+                catch (Exception e)
+                {
+                    WriteLog("Error processing request: {0} -- {1}\r\n{2}".format(e.GetType(), e.Message, e.StackTrace), EventLogEntryType.Error);
+                    Listener.HandleException(e);
+                    response.StatusCode = 500;
+                    response.Close();
+                }
+            }, TaskCreationOptions.AttachedToParent);
+
+            result.ContinueWith(antecedent =>
+            {
+                if (result.IsFaulted)
+                {
+                    var e = antecedent.Exception.InnerException;
+                    WriteLog("Error handling commit message: {0} -- {1}\r\n{2}".format(e.GetType(), e.Message, e.StackTrace), EventLogEntryType.Error);
+                    Listener.HandleException(e);
+                    response.StatusCode = 500;
+                    response.Close();
+                }
+            }, TaskContinuationOptions.OnlyOnFaulted);
+
+            return result;
+        }
+
+
     }
 
     public class ListenAgent : Daemon

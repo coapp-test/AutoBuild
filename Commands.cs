@@ -26,10 +26,10 @@ namespace AutoBuilder
         public int Run(string path, string project, XDictionary<string, string> macros)
         {
             ProcessUtility _cmdexe = new ProcessUtility("cmd.exe");
-            return Run(_cmdexe, path, project, macros);
+            return Run(_cmdexe, path, macros);
         }
 
-        public int Run(ProcessUtility exe, string path, string project, XDictionary<string, string> macros)
+        public int Run(ProcessUtility exe, string path, XDictionary<string, string> macros)
         {
             // Reset my working directory.
             Environment.CurrentDirectory = path;

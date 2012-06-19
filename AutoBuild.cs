@@ -48,6 +48,7 @@ namespace AutoBuilder
         private static XDictionary<string, Timer> Waiting;
         private static Queue<string> RunQueue;
         private static List<string> Running;
+        private static List<string> Cancellations;
         private static int CurrentJobs;
         public static List<Daemon> Daemons;
         public static Action<string> VerboseOut;
@@ -329,8 +330,8 @@ namespace AutoBuilder
             }
             catch (Exception e)
             {
+                MasterConfig = MasterConfig ?? new AutoBuild_config();
                 WriteEvent("Unable to load master config:\n" + e.Message + "\n\nDefault config loaded.", EventLogEntryType.Error, 0, 0);
-                MasterConfig = new AutoBuild_config();
                 MasterConfig.Changed += MasterChanged;
                 return false;
             }
@@ -439,6 +440,24 @@ namespace AutoBuilder
 
         }
 
+        public static bool IsWaiting(string projectName)
+        {
+            return (Waiting.ContainsKey(projectName) || RunQueue.Contains(projectName));
+        }
+        public static bool IsRunning(string projectName)
+        {
+            return Running.Contains(projectName);
+        }
+        public static bool CancelQueue(string projectName)
+        {
+            bool canceled = true; //assume that there's nothing to remove
+            if (Waiting.ContainsKey(projectName))
+                canceled = Waiting.Remove(projectName);
+            if (RunQueue.Contains(projectName) && !Cancellations.Contains(projectName))
+                Cancellations.Add(projectName);
+            return canceled;
+        }
+
         protected void WriteEvent(string Message, EventLogEntryType EventType, int ID, short Category)
         {
             EventLog.WriteEntry(Message, EventType, ID, Category);
@@ -530,7 +549,9 @@ namespace AutoBuilder
                                                                              Trigger(projectName);
                                                                          });
             Waiting[projectName].Change(MasterConfig.PreTriggerWait, Timeout.Infinite);
-
+            
+            if (Cancellations.Contains(projectName))
+                Cancellations.Remove(projectName);
         }
 
         public static void Trigger(string projectName)
@@ -555,6 +576,12 @@ namespace AutoBuilder
                     string proj = RunQueue.Dequeue();
                     if (Waiting[proj] == null)
                     {
+                        if (Cancellations.Contains(proj))
+                        {
+                            Cancellations.Remove(proj);
+                            return;
+                        }
+
                         Task.Factory.StartNew(() =>
                                                   {
                                                       Running.Add(proj);
@@ -642,7 +669,7 @@ namespace AutoBuilder
                     return (int)Errors.NoCommand;
                 }
 
-                int retVal = tmp.Run(_cmdexe, rootPath, projectName, new XDictionary<string, string>(Macros));
+                int retVal = tmp.Run(_cmdexe, rootPath, new XDictionary<string, string>(Macros));
                 status.Append(_cmdexe.StandardOut);
                 if (retVal != 0)
                     return retVal;
