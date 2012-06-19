@@ -75,6 +75,7 @@ namespace AutoBuilder
             Waiting = new XDictionary<string, Timer>();
             RunQueue = new Queue<string>();
             Running = new List<string>();
+            Cancellations = new List<string>();
             Projects = new XDictionary<string, ProjectData>();
             MasterConfig = new AutoBuild_config();
             ServiceName = "AutoBuild";
