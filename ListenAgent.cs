@@ -671,7 +671,7 @@ namespace AutoBuilder
                     if (message["log"] != String.Empty)
                     {
                         //logfile request
-                        string projName = message["status"];
+                        string projName = message["log"];
                         var proj = AutoBuild.Projects[projName];
                         if (proj != null)
                         {
