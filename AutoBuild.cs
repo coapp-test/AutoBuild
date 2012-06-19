@@ -452,7 +452,11 @@ namespace AutoBuilder
         {
             bool canceled = true; //assume that there's nothing to remove
             if (Waiting.ContainsKey(projectName))
+            {
+                Waiting[projectName].Change(Timeout.Infinite, Timeout.Infinite);
+                Waiting[projectName].Dispose();
                 canceled = Waiting.Remove(projectName);
+            }
             if (RunQueue.Contains(projectName) && !Cancellations.Contains(projectName))
                 Cancellations.Add(projectName);
             return canceled;
@@ -579,6 +583,7 @@ namespace AutoBuilder
                         if (Cancellations.Contains(proj))
                         {
                             Cancellations.Remove(proj);
+                            CurrentJobs -= 1;
                             return;
                         }
 
@@ -588,12 +593,14 @@ namespace AutoBuilder
                                                       StartBuild(proj);
                                                   }, TaskCreationOptions.AttachedToParent).ContinueWith(
                                                       antecedent =>
-                                                          {
-                                                              Running.Remove(proj);
-                                                              CurrentJobs -= 1;
-                                                              Task.Factory.StartNew(ProcessQueue);
-                                                          });
+                                                      {
+                                                          Running.Remove(proj);
+                                                          CurrentJobs -= 1;
+                                                          Task.Factory.StartNew(ProcessQueue);
+                                                      });
                     }
+                    else
+                        CurrentJobs -= 1;
                 }
             }
             
