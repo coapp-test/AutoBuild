@@ -6,6 +6,7 @@
 using System.ComponentModel;
 using System;
 using System.Diagnostics;
+using System.IO;
 using System.Text;
 using System.Threading;
 using CoApp.Toolkit.Extensions;
@@ -27,6 +28,14 @@ namespace AutoBuilder
 
         private StringBuilder sErr = new StringBuilder();
         private StringBuilder sOut = new StringBuilder();
+
+        private StreamWriter AllOut = null;
+
+        public void AssignOutputStream(StreamWriter SW)
+        {
+            AllOut = SW;
+            AllOut.AutoFlush = true;
+        }
 
         public void ResetStdOut(StringBuilder newOut = null)
         {
@@ -51,6 +60,8 @@ namespace AutoBuilder
             sErr.AppendLine(e.Data);
             if (ConsoleOut)
                 Console.Out.WriteLine(e.Data);
+            if (AllOut != null)
+                AllOut.WriteLine(e.Data);
         }
 
         private void CurrentProcess_OutputDataReceived(object sender, DataReceivedEventArgs e)
@@ -58,6 +69,8 @@ namespace AutoBuilder
             sOut.AppendLine(e.Data);
             if (ConsoleOut)
                 Console.Error.WriteLine(e.Data);
+            if (AllOut != null)
+                AllOut.WriteLine(e.Data);
         }
 
         private void CurrentProcess_Exited(object sender, EventArgs e)

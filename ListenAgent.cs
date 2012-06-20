@@ -577,6 +577,7 @@ namespace AutoBuilder
             {
                 try
                 {
+                    response.AddHeader("Content-Type", "text/plain");
                     if (message["reconfig"] != String.Empty)
                     {
                         //re-load global config request
@@ -682,10 +683,11 @@ namespace AutoBuilder
                             {
                                 try
                                 {
-                                    string logfile = Path.Combine(AutoBuild.MasterConfig.ProjectRoot, projName, "Archive",
+                                    string logpath = Path.Combine(AutoBuild.MasterConfig.ProjectRoot, projName, "Archive",
                                                                   proj.GetHistory().Builds[
                                                                       proj.GetHistory().Builds.Count - 1].TimeStamp.ToString
-                                                                      (AutoBuild.DateTimeDirFormat), "run.log");
+                                                                      (AutoBuild.DateTimeDirFormat));
+                                    string logfile = File.Exists(Path.Combine(logpath, "build.log")) ? Path.Combine(logpath, "build.log") : Path.Combine(logpath, "run.log");
                                     msg = File.ReadAllText(logfile);
                                 }
                                 catch (Exception ee)

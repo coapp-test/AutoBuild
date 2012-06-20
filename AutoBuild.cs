@@ -499,10 +499,13 @@ namespace AutoBuilder
                     BuildStatus build = new BuildStatus();
                     Directory.CreateDirectory(Path.Combine(MasterConfig.ProjectRoot, projectName, "Archive",
                                                            build.TimeStamp.ToString(DateTimeDirFormat)));
+                    string RunLog = Path.Combine(MasterConfig.ProjectRoot, projectName, "Archive",
+                             build.TimeStamp.ToString(DateTimeDirFormat), "run.log");
+                    StreamWriter runStream = new StreamWriter(RunLog, true);
                     build.Append("Log for project [" + projectName + "] on reference [" + checkout + "]");
-                    if (PreBuildActions(projectName, build, checkout) == 0)
-                        if (BuildActions(projectName, build, checkout) == 0)
-                            if (PostBuildActions(projectName, build, checkout) == 0)
+                    if (PreBuildActions(projectName, build, checkout, runStream) == 0)
+                        if (BuildActions(projectName, build, checkout, runStream) == 0)
+                            if (PostBuildActions(projectName, build, checkout, runStream) == 0)
                                 build.ChangeResult("Success");
                             else
                                 build.ChangeResult("Warning");
@@ -510,10 +513,11 @@ namespace AutoBuilder
                             build.ChangeResult("Failed");
                     else
                         build.ChangeResult("Error");
+                    runStream.Close();
                     Projects[projectName].GetHistory().Append(build);
                     WriteVerbose("Project done: " + projectName + " \t Result: " + build.Result);
                     string BuildLog = Path.Combine(MasterConfig.ProjectRoot, projectName, "Archive",
-                                     build.TimeStamp.ToString(DateTimeDirFormat), "run.log");
+                                     build.TimeStamp.ToString(DateTimeDirFormat), "Build.log");
                     File.WriteAllText(BuildLog, build.LogData);
                 }
             }
@@ -607,7 +611,7 @@ namespace AutoBuilder
             
         }
 
-        private static int doActions(string projectName, IEnumerable<string> commands, BuildStatus status = null, XDictionary<string, string> Macros = null)
+        private static int doActions(string projectName, IEnumerable<string> commands, BuildStatus status = null, XDictionary<string, string> Macros = null, StreamWriter OutputStream = null)
         {
             if (projectName == null)
                 throw new ArgumentException("ProjectName cannot be null.");
@@ -625,6 +629,7 @@ namespace AutoBuilder
             ProjectData proj = Projects[projectName];
             ProcessUtility _cmdexe = new ProcessUtility("cmd.exe");
             _cmdexe.ConsoleOut = WriteConsole;
+            _cmdexe.AssignOutputStream(OutputStream);
             
 
             Func<string> getToolSwitches = () =>
@@ -686,7 +691,7 @@ namespace AutoBuilder
             return 0;
         }
 
-        private static int PreBuildActions(string projectName, BuildStatus status = null, string checkoutRef = null)
+        private static int PreBuildActions(string projectName, BuildStatus status = null, string checkoutRef = null, StreamWriter OutputStream = null)
         {
             if (projectName == null)
                 throw new ArgumentException("ProjectName cannot be null.");
@@ -698,13 +703,13 @@ namespace AutoBuilder
             {
                 XDictionary<string, string> macros = new XDictionary<string, string>();
                 macros["checkout"] = checkoutRef;
-                return doActions(projectName, Projects[projectName].BuildCheckouts[checkoutRef].PreCmd, status, macros);
+                return doActions(projectName, Projects[projectName].BuildCheckouts[checkoutRef].PreCmd, status, macros, OutputStream);
             }
             // else
             return doActions(projectName, Projects[projectName].PreBuild, status);
         }
 
-        private static int PostBuildActions(string projectName, BuildStatus status = null, string checkoutRef = null)
+        private static int PostBuildActions(string projectName, BuildStatus status = null, string checkoutRef = null, StreamWriter OutputStream = null)
         {
             if (projectName == null)
                 throw new ArgumentException("ProjectName cannot be null.");
@@ -716,13 +721,13 @@ namespace AutoBuilder
             {
                 XDictionary<string, string> macros = new XDictionary<string, string>();
                 macros["checkout"] = checkoutRef;
-                return doActions(projectName, Projects[projectName].BuildCheckouts[checkoutRef].ArchiveCmd, status, macros);
+                return doActions(projectName, Projects[projectName].BuildCheckouts[checkoutRef].ArchiveCmd, status, macros, OutputStream);
             }
             // else
             return doActions(projectName, Projects[projectName].PostBuild, status);
         }
 
-        private static int BuildActions(string projectName, BuildStatus status = null, string checkoutRef = null)
+        private static int BuildActions(string projectName, BuildStatus status = null, string checkoutRef = null, StreamWriter OutputStream = null)
         {
             if (projectName == null)
                 throw new ArgumentException("ProjectName cannot be null.");
@@ -734,7 +739,7 @@ namespace AutoBuilder
             {
                 XDictionary<string, string> macros = new XDictionary<string, string>();
                 macros["checkout"] = checkoutRef;
-                return doActions(projectName, Projects[projectName].BuildCheckouts[checkoutRef].BuildCmd, status, macros);
+                return doActions(projectName, Projects[projectName].BuildCheckouts[checkoutRef].BuildCmd, status, macros, OutputStream);
             }
             // else
             return doActions(projectName, Projects[projectName].Build, status);
