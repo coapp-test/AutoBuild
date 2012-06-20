@@ -688,7 +688,7 @@ namespace AutoBuilder
                                                                       proj.GetHistory().Builds.Count - 1].TimeStamp.ToString
                                                                       (AutoBuild.DateTimeDirFormat));
                                     string logfile = File.Exists(Path.Combine(logpath, "build.log")) ? Path.Combine(logpath, "build.log") : Path.Combine(logpath, "run.log");
-                                    StreamReader reader = new StreamReader(File.OpenRead(logfile));
+                                    StreamReader reader = new StreamReader(new FileStream(logfile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite));
                                     msg = reader.ReadToEnd();
                                 }
                                 catch (Exception ee)

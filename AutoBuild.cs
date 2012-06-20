@@ -530,7 +530,7 @@ namespace AutoBuilder
                                                        build.TimeStamp.ToString(DateTimeDirFormat)));
                 string RunLog = Path.Combine(MasterConfig.ProjectRoot, projectName, "Archive",
                                              build.TimeStamp.ToString(DateTimeDirFormat), "run.log");
-                StreamWriter runStream = new StreamWriter(RunLog, true);
+                StreamWriter runStream = new StreamWriter(new FileStream(RunLog, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.Read));
                 build.Append("Log for project [" + projectName + "]");
                 if (PreBuildActions(projectName, build) == 0)
                     if (BuildActions(projectName, build) == 0)
