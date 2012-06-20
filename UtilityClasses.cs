@@ -207,10 +207,20 @@ namespace AutoBuilder
 
         /// <summary>
         /// This will add a BuildStatus to the history.
-        /// NOTE:  This will also lock the BuildStatus against further changes!
         /// </summary>
         /// <param name="status"></param>
         public void Append(BuildStatus status)
+        {
+            Builds = Builds ?? new ObservableCollection<BuildStatus>();
+            Builds.Add(status);
+        }
+
+        /// <summary>
+        /// This will add a BuildStatus to the history.
+        /// NOTE:  This will also lock the BuildStatus against further changes!
+        /// </summary>
+        /// <param name="status"></param>
+        public void AppendAndLock(BuildStatus status)
         {
             status.Lock();
             Builds = Builds ?? new ObservableCollection<BuildStatus>();
