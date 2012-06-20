@@ -497,6 +497,7 @@ namespace AutoBuilder
                 foreach (var checkout in Projects[projectName].BuildCheckouts.Keys)
                 {
                     BuildStatus build = new BuildStatus();
+                    Projects[projectName].GetHistory().Append(build);
                     Directory.CreateDirectory(Path.Combine(MasterConfig.ProjectRoot, projectName, "Archive",
                                                            build.TimeStamp.ToString(DateTimeDirFormat)));
                     string RunLog = Path.Combine(MasterConfig.ProjectRoot, projectName, "Archive",
@@ -514,7 +515,7 @@ namespace AutoBuilder
                     else
                         build.ChangeResult("Error");
                     runStream.Close();
-                    Projects[projectName].GetHistory().Append(build);
+                    build.Lock();
                     WriteVerbose("Project done: " + projectName + " \t Result: " + build.Result);
                     string BuildLog = Path.Combine(MasterConfig.ProjectRoot, projectName, "Archive",
                                      build.TimeStamp.ToString(DateTimeDirFormat), "Build.log");
