@@ -76,7 +76,7 @@ namespace AutoBuilder
         public abstract void Init();
     }
 
-    public class BuildStatus
+    public class BuildStatus : IEquatable<BuildStatus>
     {
         [Persistable]
         private bool Locked = true;
@@ -135,6 +135,11 @@ namespace AutoBuilder
         {
             Locked = false;
             TimeStamp = DateTime.UtcNow;
+        }
+
+        public bool Equals(BuildStatus other)
+        {
+            return ((other.TimeStamp.Equals(TimeStamp)) && (other.Result.Equals(Result, StringComparison.CurrentCultureIgnoreCase)));
         }
     }
 
@@ -209,10 +214,13 @@ namespace AutoBuilder
         /// This will add a BuildStatus to the history.
         /// </summary>
         /// <param name="status"></param>
-        public void Append(BuildStatus status)
+        public bool Append(BuildStatus status)
         {
+            if (Builds.Contains(status))
+                return false;
             Builds = Builds ?? new ObservableCollection<BuildStatus>();
             Builds.Add(status);
+            return true;
         }
 
         /// <summary>
@@ -220,11 +228,14 @@ namespace AutoBuilder
         /// NOTE:  This will also lock the BuildStatus against further changes!
         /// </summary>
         /// <param name="status"></param>
-        public void AppendAndLock(BuildStatus status)
+        public bool AppendAndLock(BuildStatus status)
         {
+            if (Builds.Contains(status))
+                return false;
             status.Lock();
             Builds = Builds ?? new ObservableCollection<BuildStatus>();
             Builds.Add(status);
+            return true;
         }
 
         public BuildHistory()

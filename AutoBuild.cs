@@ -525,8 +525,13 @@ namespace AutoBuilder
             else
             {
                 BuildStatus build = new BuildStatus();
+                Projects[projectName].GetHistory().Append(build);
                 Directory.CreateDirectory(Path.Combine(MasterConfig.ProjectRoot, projectName, "Archive",
                                                        build.TimeStamp.ToString(DateTimeDirFormat)));
+                string RunLog = Path.Combine(MasterConfig.ProjectRoot, projectName, "Archive",
+                                             build.TimeStamp.ToString(DateTimeDirFormat), "run.log");
+                StreamWriter runStream = new StreamWriter(RunLog, true);
+                build.Append("Log for project [" + projectName + "]");
                 if (PreBuildActions(projectName, build) == 0)
                     if (BuildActions(projectName, build) == 0)
                         if (PostBuildActions(projectName, build) == 0)
@@ -537,10 +542,11 @@ namespace AutoBuilder
                         build.ChangeResult("Failed");
                 else
                     build.ChangeResult("Error");
-                Projects[projectName].GetHistory().Append(build);
+                runStream.Close();
+                build.Lock();
                 WriteVerbose("Project done: " + projectName + " \t Result: " + build.Result);
                 string BuildLog = Path.Combine(MasterConfig.ProjectRoot, projectName, "Archive",
-                                 build.TimeStamp.ToString(DateTimeDirFormat), "run.log");
+                                 build.TimeStamp.ToString(DateTimeDirFormat), "Build.log");
                 File.WriteAllText(BuildLog, build.LogData);
             }
         }
