@@ -685,7 +685,7 @@ namespace AutoBuilder
                                     string logfile = Path.Combine(AutoBuild.MasterConfig.ProjectRoot, projName, "Archive",
                                                                   proj.GetHistory().Builds[
                                                                       proj.GetHistory().Builds.Count - 1].TimeStamp.ToString
-                                                                      (AutoBuild.DateTimeDirFormat));
+                                                                      (AutoBuild.DateTimeDirFormat), "run.log");
                                     msg = File.ReadAllText(logfile);
                                 }
                                 catch (Exception ee)
