@@ -565,8 +565,9 @@ namespace AutoBuilder
 
         public override Task Get(HttpListenerResponse response, string relativePath, UrlEncodedMessage message)
         {
-            if ((message["status"] + message["build"] + message["publish"] + message["log"] + message["reload"] + message["reconfig"] + message["cancel"])
-                .Equals(String.Empty))
+            if ((message["status"] + message["build"] + message["publish"] + message["log"] 
+                    + message["reload"] + message["reconfig"] + message["cancel"] + message["add"])
+                    .Equals(String.Empty))
             {
                 response.StatusCode = 500;
                 response.Close();
@@ -593,6 +594,98 @@ namespace AutoBuilder
                         if (!AutoBuild.Instance.LoadProject(projName, true))
                         {
                             response.WriteString("Failed to reload project config: '{0}'.  ", projName);
+                        }
+                    }
+                    if (message["add"] != String.Empty)
+                    {
+                        string projName = message["add"];
+                        if (!AutoBuild.Projects.ContainsKey(projName))
+                        {
+
+                            /////Build new ProjectInfo info from commit message.
+                            ProjectData project = new ProjectData();
+                            project.SetName(projName);
+
+                            project.Enabled = true;
+                            project.KeepCleanRepo = AutoBuild.MasterConfig.DefaultCleanRepo;
+
+                            // This section constructs the repo url to use...
+                            project.RepoURL = @"git@github.com:coapp-packages/" + projName;
+
+                            project.WatchRefs.AddRange(AutoBuild.MasterConfig.DefaultRefs);
+
+                            if (!(AutoBuild.MasterConfig.DefaultCommands.IsNullOrEmpty()))
+                            {
+
+                                if (project.WatchRefs.Count > 0)
+                                {
+                                    foreach (string watchRef in project.WatchRefs)
+                                    {
+                                        string branch = watchRef.Substring(11); //length of @"refs/heads/"
+                                        project.BuildCheckouts[branch] = new ProjectData.CheckoutInfo();
+
+                                        List<string> strings;
+                                        //prebuild
+                                        strings = AutoBuild.MasterConfig.DefaultCommands["prebuild"] ??
+                                                  new List<string>();
+                                        foreach (string s in strings)
+                                        {
+                                            project.BuildCheckouts[branch].PreCmd.Add(s);
+                                        }
+                                        //build
+                                        project.BuildCheckouts[branch].BuildCmd.Add("Checkout"); // magic name
+                                        strings = AutoBuild.MasterConfig.DefaultCommands["build"] ?? new List<string>();
+                                        foreach (string s in strings)
+                                        {
+                                            project.BuildCheckouts[branch].BuildCmd.Add(s);
+                                        }
+                                        //postbuild
+                                        strings = AutoBuild.MasterConfig.DefaultCommands["postbuild"] ??
+                                                  new List<string>();
+                                        foreach (string s in strings)
+                                        {
+                                            project.BuildCheckouts[branch].ArchiveCmd.Add(s);
+                                        }
+                                    }
+                                }
+                                else
+                                {
+                                    List<string> strings;
+                                    //prebuild
+                                    strings = AutoBuild.MasterConfig.DefaultCommands["prebuild"] ??
+                                              new List<string>();
+                                    foreach (string s in strings)
+                                    {
+                                        project.PreBuild.Add(s);
+                                    }
+                                    //build
+                                    strings = AutoBuild.MasterConfig.DefaultCommands["build"] ?? new List<string>();
+                                    foreach (string s in strings)
+                                    {
+                                        project.Build.Add(s);
+                                    }
+                                    //postbuild
+                                    strings = AutoBuild.MasterConfig.DefaultCommands["postbuild"] ??
+                                              new List<string>();
+                                    foreach (string s in strings)
+                                    {
+                                        project.PostBuild.Add(s);
+                                    }
+
+                                }
+                            }
+
+                            //We're obviously adding a git repo for this project, so assign that for the project's version control
+                            project.VersionControl = "git";
+
+                            //Add the new project with the new ProjectInfo
+                            AutoBuild.Instance.AddProject(projName, project);
+
+                            response.WriteString("Project added: {0}.  ", projName);
+                        }
+                        else
+                        {
+                            response.WriteString("Project already exists: {0}.  ", projName);
                         }
                     }
                     if (message["status"] != String.Empty)
